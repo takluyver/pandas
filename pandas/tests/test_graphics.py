@@ -64,7 +64,7 @@ class TestDataFramePlots(unittest.TestCase):
     def test_plot_bar(self):
         import string
         df = DataFrame(np.random.randn(6, 4),
-                       index=list(string.letters[:6]),
+                       index=list(string.ascii_letters[:6]),
                        columns=['one', 'two', 'three', 'four'])
 
         _check_plot_works(df.plot, kind='bar')
@@ -72,7 +72,7 @@ class TestDataFramePlots(unittest.TestCase):
         _check_plot_works(df.plot, kind='bar', subplots=True)
 
         df = DataFrame(np.random.randn(10, 15),
-                       index=list(string.letters[:10]),
+                       index=list(string.ascii_letters[:10]),
                        columns=range(15))
         _check_plot_works(df.plot, kind='bar')
 
