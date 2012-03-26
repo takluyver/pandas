@@ -106,7 +106,7 @@ def read_csv(filepath_or_buffer, sep=',', header=0, index_col=None, names=None,
              date_parser=None, nrows=None, iterator=False, chunksize=None,
              skip_footer=0, converters=None, verbose=False, delimiter=None,
              encoding=None):
-    if _is_url(filepath_or_buffer):
+    if isinstance(filepath_or_buffer, str) and _is_url(filepath_or_buffer):
         from urllib2 import urlopen
         filepath_or_buffer = urlopen(filepath_or_buffer)
     if hasattr(filepath_or_buffer, 'read'):
