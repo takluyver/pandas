@@ -91,11 +91,11 @@ Read general delimited file into DataFrame
 
 def _is_url(url):
     """
-    Very naive check to see if url is an http, ftp, or file location.
+    Very naive check to see if url is an http(s), ftp, or file location.
     """
     from urlparse import urlparse
     parsed_url = urlparse(url)
-    if parsed_url.scheme in ['http','file', 'ftp']:
+    if parsed_url.scheme in ['http','file', 'ftp', 'https']:
         return True
     else:
         return False
