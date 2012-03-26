@@ -20,7 +20,10 @@ into chunks.
 
 Parameters
 ----------
-filepath_or_buffer : string or file handle / StringIO
+filepath_or_buffer : string or file handle / StringIO. The string could be
+    a URL. Valid URL schemes include http://, ftp://, and file://. For
+    file:// URLs, a host is expected. For instance, a local file could be
+    file://localhost/path/to/table.csv
 %s
 header : int, default 0
     Row to use for the column labels of the parsed DataFrame
@@ -86,12 +89,26 @@ Read general delimited file into DataFrame
 %s
 """ % (_parser_params % _table_sep)
 
+def _is_url(url):
+    """
+    Very naive check to see if url is an http, ftp, or file location.
+    """
+    from urlparse import urlparse
+    parsed_url = urlparse(url)
+    if parsed_url.scheme in ['http','file', 'ftp']:
+        return True
+    else:
+        return False
+
 @Appender(_read_csv_doc)
 def read_csv(filepath_or_buffer, sep=',', header=0, index_col=None, names=None,
              skiprows=None, na_values=None, parse_dates=False,
              date_parser=None, nrows=None, iterator=False, chunksize=None,
              skip_footer=0, converters=None, verbose=False, delimiter=None,
              encoding=None):
+    if _is_url(filepath_or_buffer):
+        from urllib2 import urlopen
+        filepath_or_buffer = urlopen(filepath_or_buffer)
     if hasattr(filepath_or_buffer, 'read'):
         f = filepath_or_buffer
     else:
@@ -793,7 +810,7 @@ class ExcelWriter(object):
             sheet = self.book.create_sheet()
             sheet.title = sheet_name
             row_idx = 0
-        
+
         conv_row = []
         for val in row:
             if isinstance(val, np.int64):
