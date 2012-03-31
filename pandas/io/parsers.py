@@ -112,8 +112,13 @@ def read_csv(filepath_or_buffer, sep=',', header=0, index_col=None, names=None,
         filepath_or_buffer = urlopen(filepath_or_buffer)
         if py3compat.PY3:
             from io import TextIOWrapper
+            if encoding:
+                errors = 'strict'
+            else:
+                errors = 'replace'
             filepath_or_buffer = TextIOWrapper(filepath_or_buffer,
-                                               encoding=encoding)
+                                               encoding=encoding,
+                                               errors=errors)
     if hasattr(filepath_or_buffer, 'read'):
         f = filepath_or_buffer
     else:
