@@ -701,6 +701,13 @@ class HTMLFormatter(TableFormatter):
             sentinal = com.sentinal_factory()
             levels = self.columns.format(sparsify=sentinal, adjoin=False,
                                          names=False)
+            # Truncate column names
+            if len(levels[0]) > self.max_cols:
+                levels = [lev[:self.max_cols] for lev in levels]
+                truncated = True
+            else:
+                truncated = False
+
             level_lengths = _get_level_lengths(levels, sentinal)
 
             row_levels = self.frame.index.nlevels
@@ -721,6 +728,9 @@ class HTMLFormatter(TableFormatter):
                         continue
                     j += 1
                     row.append(v)
+
+                if truncated:
+                    row.append('')
 
                 self.write_tr(row, indent, self.indent_delta, tags=tags,
                               header=True)
@@ -794,7 +804,8 @@ class HTMLFormatter(TableFormatter):
         template = 'rowspan="%d" valign="top"'
 
         frame = self.frame
-        ncols = len(self.columns)
+        ncols = min(len(self.columns), self.max_cols)
+        truncate = (len(frame) > self.max_rows)
 
         idx_values = frame.index.format(sparsify=False, adjoin=False,
                                         names=False)
@@ -806,9 +817,13 @@ class HTMLFormatter(TableFormatter):
             sentinal = com.sentinal_factory()
             levels = frame.index.format(sparsify=sentinal, adjoin=False,
                                         names=False)
+            # Truncate row names
+            if truncate:
+                levels = [lev[:self.max_rows] for lev in levels]
+
             level_lengths = _get_level_lengths(levels, sentinal)
 
-            for i in range(len(frame)):
+            for i in range(min(len(frame), self.max_rows)):
                 row = []
                 tags = {}
 
@@ -838,6 +853,11 @@ class HTMLFormatter(TableFormatter):
                 row.extend(fmt_values[j][i] for j in range(ncols))
                 self.write_tr(row, indent, self.indent_delta, tags=None,
                               nindex_levels=frame.index.nlevels)
+
+        # Truncation markers (...)
+        if truncate:
+            row = ([''] * frame.index.nlevels) + (['...'] * ncols)
+            self.write_tr(row, indent, self.indent_delta, tags=None)
 
 
 def _get_level_lengths(levels, sentinal=''):
