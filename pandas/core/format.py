@@ -463,11 +463,12 @@ class DataFrameFormatter(TableFormatter):
                             na_rep=self.na_rep,
                             space=self.col_space)
 
-    def to_html(self, classes=None, max_rows=60):
+    def to_html(self, classes=None, max_rows=60, max_cols=20):
         """
         Render a DataFrame to a html table.
         """
-        html_renderer = HTMLFormatter(self, classes=classes, max_rows=max_rows)
+        html_renderer = HTMLFormatter(self, classes=classes, max_rows=max_rows,
+                                      max_cols=max_cols)
         if hasattr(self.buf, 'write'):
             html_renderer.write_result(self.buf)
         elif isinstance(self.buf, compat.string_types):
@@ -564,7 +565,7 @@ class HTMLFormatter(TableFormatter):
 
     indent_delta = 2
 
-    def __init__(self, formatter, classes=None, max_rows=60):
+    def __init__(self, formatter, classes=None, max_rows=60, max_cols=20):
         self.fmt = formatter
         self.classes = classes
 
@@ -575,6 +576,7 @@ class HTMLFormatter(TableFormatter):
         self.escape = self.fmt.kwds.get('escape', True)
 
         self.max_rows = max_rows
+        self.max_cols = max_cols
 
     def write(self, s, indent=0):
         rs = com.pprint_thing(s)
@@ -682,7 +684,9 @@ class HTMLFormatter(TableFormatter):
             else:
                 if self.fmt.index:
                     row.append(self.columns.name or '')
-                row.extend(self.columns)
+                row.extend(self.columns[:self.max_cols])
+                if len(self.columns) > self.max_cols:
+                    row.append('')
             return row
 
         self.write('<thead>', indent)
@@ -742,15 +746,16 @@ class HTMLFormatter(TableFormatter):
         indent += self.indent_delta
 
         fmt_values = {}
-        for i in range(len(self.columns)):
+        for i in range(min(len(self.columns), self.max_cols)):
             fmt_values[i] = self.fmt._format_col(i)
+        truncated = (len(self.columns) > self.max_cols)
 
         # write values
         if self.fmt.index:
             if isinstance(self.frame.index, MultiIndex):
                 self._write_hierarchical_rows(fmt_values, indent)
             else:
-                self._write_regular_rows(fmt_values, indent)
+                self._write_regular_rows(fmt_values, indent, truncated)
         else:
             for i in range(len(self.frame)):
                 row = [fmt_values[j][i] for j in range(len(self.columns))]
@@ -762,8 +767,8 @@ class HTMLFormatter(TableFormatter):
 
         return indent
 
-    def _write_regular_rows(self, fmt_values, indent):
-        ncols = len(self.columns)
+    def _write_regular_rows(self, fmt_values, indent, truncated):
+        ncols = min(len(self.columns), self.max_cols)
 
         fmt = self.fmt._get_formatter('__index__')
         if fmt is not None:
@@ -775,6 +780,8 @@ class HTMLFormatter(TableFormatter):
             row = []
             row.append(index_values[i])
             row.extend(fmt_values[j][i] for j in range(ncols))
+            if truncated:
+                row.append('...')
             self.write_tr(row, indent, self.indent_delta, tags=None,
                           nindex_levels=1)
 
