@@ -463,11 +463,11 @@ class DataFrameFormatter(TableFormatter):
                             na_rep=self.na_rep,
                             space=self.col_space)
 
-    def to_html(self, classes=None):
+    def to_html(self, classes=None, max_rows=60):
         """
         Render a DataFrame to a html table.
         """
-        html_renderer = HTMLFormatter(self, classes=classes)
+        html_renderer = HTMLFormatter(self, classes=classes, max_rows=max_rows)
         if hasattr(self.buf, 'write'):
             html_renderer.write_result(self.buf)
         elif isinstance(self.buf, compat.string_types):
@@ -564,7 +564,7 @@ class HTMLFormatter(TableFormatter):
 
     indent_delta = 2
 
-    def __init__(self, formatter, classes=None):
+    def __init__(self, formatter, classes=None, max_rows=60):
         self.fmt = formatter
         self.classes = classes
 
@@ -573,6 +573,8 @@ class HTMLFormatter(TableFormatter):
         self.elements = []
         self.bold_rows = self.fmt.kwds.get('bold_rows', False)
         self.escape = self.fmt.kwds.get('escape', True)
+
+        self.max_rows = max_rows
 
     def write(self, s, indent=0):
         rs = com.pprint_thing(s)
@@ -769,10 +771,15 @@ class HTMLFormatter(TableFormatter):
         else:
             index_values = self.frame.index.format()
 
-        for i in range(len(self.frame)):
+        for i in range(min(len(self.frame), self.max_rows)):
             row = []
             row.append(index_values[i])
             row.extend(fmt_values[j][i] for j in range(ncols))
+            self.write_tr(row, indent, self.indent_delta, tags=None,
+                          nindex_levels=1)
+
+        if len(self.frame) > self.max_rows:
+            row = [''] + (['...'] * ncols)
             self.write_tr(row, indent, self.indent_delta, tags=None,
                           nindex_levels=1)
 

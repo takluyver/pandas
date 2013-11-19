@@ -481,7 +481,8 @@ class DataFrame(NDFrame):
             raise ValueError('Disable HTML output in QtConsole')
 
         if get_option("display.notebook_repr_html"):
-            fits_vertical = self._repr_fits_vertical_()
+            fits_vertical = True #self._repr_fits_vertical_()
+            max_rows = get_option("display.max_rows")
             fits_horizontal = False
             if fits_vertical:
                 fits_horizontal = self._repr_fits_horizontal_(
@@ -490,7 +491,7 @@ class DataFrame(NDFrame):
             if fits_horizontal and fits_vertical:
                 return ('<div style="max-height:1000px;'
                         'max-width:1500px;overflow:auto;">\n' +
-                        self.to_html() + '\n</div>')
+                        self.to_html(max_rows=max_rows) + '\n</div>')
             else:
                 buf = StringIO(u(""))
                 max_info_rows = get_option('display.max_info_rows')
@@ -1307,7 +1308,7 @@ class DataFrame(NDFrame):
                 header=True, index=True, na_rep='NaN', formatters=None,
                 float_format=None, sparsify=None, index_names=True,
                 justify=None, force_unicode=None, bold_rows=True,
-                classes=None, escape=True):
+                classes=None, escape=True, max_rows=60):
         """
         Render a DataFrame as an HTML table.
 
@@ -1319,6 +1320,8 @@ class DataFrame(NDFrame):
             CSS class(es) to apply to the resulting html table
         escape : boolean, default True
             Convert the characters <, >, and & to HTML-safe sequences.
+        max_rows : int, default 60
+            Maximum number of rows to show before truncating.
 
         """
 
@@ -1341,7 +1344,7 @@ class DataFrame(NDFrame):
                                            header=header, index=index,
                                            bold_rows=bold_rows,
                                            escape=escape)
-        formatter.to_html(classes=classes)
+        formatter.to_html(classes=classes, max_rows=max_rows)
 
         if buf is None:
             return formatter.buf.getvalue()
