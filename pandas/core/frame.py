@@ -481,30 +481,13 @@ class DataFrame(NDFrame):
             raise ValueError('Disable HTML output in QtConsole')
 
         if get_option("display.notebook_repr_html"):
-            fits_vertical = True #self._repr_fits_vertical_()
             max_rows = get_option("display.max_rows")
-            fits_horizontal = True #False
             max_cols = get_option("display.max_columns")
-#            if fits_vertical:
-#                fits_horizontal = self._repr_fits_horizontal_(
-#                    ignore_width=ipnbh)
 
-            if fits_horizontal and fits_vertical:
-                return ('<div style="max-height:1000px;'
-                        'max-width:1500px;overflow:auto;">\n' +
-                        self.to_html(max_rows=max_rows, max_cols=max_cols) \
-                        + '\n</div>')
-            else:
-                buf = StringIO(u(""))
-                max_info_rows = get_option('display.max_info_rows')
-                verbose = (max_info_rows is None or
-                           self.shape[0] <= max_info_rows)
-                self.info(buf=buf, verbose=verbose)
-                info = buf.getvalue()
-                info = info.replace('&', r'&amp;')
-                info = info.replace('<', r'&lt;')
-                info = info.replace('>', r'&gt;')
-                return ('<pre>\n' + info + '\n</pre>')
+            return ('<div style="max-height:1000px;'
+                    'max-width:1500px;overflow:auto;">\n' +
+                    self.to_html(max_rows=max_rows, max_cols=max_cols) \
+                    + '\n</div>')
         else:
             return None
 
