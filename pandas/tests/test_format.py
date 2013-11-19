@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from pandas.compat import range, zip, lrange, StringIO, PY3, lzip, u
 import pandas.compat as compat
+import itertools
 import os
 import sys
 import unittest
@@ -1432,6 +1433,78 @@ c  10  11  12  13  14\
         self.frame._repr_html_()
 
         fmt.reset_option('^display.')
+
+    def test_repr_html_wide(self):
+        row = lambda l, k: [tm.rands(k) for _ in range(l)]
+        max_cols = get_option('display.max_columns')
+        df = DataFrame([row(max_cols-1, 25) for _ in range(10)])
+        reg_repr = df._repr_html_()
+        assert "..." not in reg_repr
+
+        wide_df = DataFrame([row(max_cols+1, 25) for _ in range(10)])
+        wide_repr = wide_df._repr_html_()
+        assert "..." in wide_repr
+
+    def test_repr_html_wide_multiindex_cols(self):
+        row = lambda l, k: [tm.rands(k) for _ in range(l)]
+        max_cols = get_option('display.max_columns')
+
+        tuples = list(itertools.product(np.arange(max_cols//2), ['foo', 'bar']))
+        mcols = pandas.MultiIndex.from_tuples(tuples, names=['first', 'second'])
+        df = DataFrame([row(len(mcols), 25) for _ in range(10)], columns=mcols)
+        reg_repr = df._repr_html_()
+        assert '...' not in reg_repr
+
+
+        tuples = list(itertools.product(np.arange(1+(max_cols//2)), ['foo', 'bar']))
+        mcols = pandas.MultiIndex.from_tuples(tuples, names=['first', 'second'])
+        df = DataFrame([row(len(mcols), 25) for _ in range(10)], columns=mcols)
+        wide_repr = df._repr_html_()
+        assert '...' in wide_repr
+
+    def test_repr_html_long(self):
+        max_rows = get_option('display.max_rows')
+        h = max_rows - 1
+        df = pandas.DataFrame({'A':np.arange(1,1+h), 'B':np.arange(41, 41+h)})
+        reg_repr = df._repr_html_()
+        assert '...' not in reg_repr
+        assert str(40 + h) in reg_repr
+
+        h = max_rows + 1
+        df = pandas.DataFrame({'A':np.arange(1,1+h), 'B':np.arange(41, 41+h)})
+        long_repr = df._repr_html_()
+        assert '...' in long_repr
+        assert str(40 + h) not in long_repr
+
+    def test_repr_html_long_multiindex(self):
+        max_rows = get_option('display.max_rows')
+        max_L1 = max_rows//2
+
+        tuples = list(itertools.product(np.arange(max_L1), ['foo', 'bar']))
+        idx = pandas.MultiIndex.from_tuples(tuples, names=['first', 'second'])
+        df = DataFrame(np.random.randn(max_L1*2, 2), index=idx,
+                       columns=['A', 'B'])
+        reg_repr = df._repr_html_()
+        assert '...' not in reg_repr
+
+        tuples = list(itertools.product(np.arange(max_L1+1), ['foo', 'bar']))
+        idx = pandas.MultiIndex.from_tuples(tuples, names=['first', 'second'])
+        df = DataFrame(np.random.randn((max_L1+1)*2, 2), index=idx,
+                       columns=['A', 'B'])
+        long_repr = df._repr_html_()
+        assert '...' in long_repr
+
+    def test_repr_html_long_and_wide(self):
+        max_cols = get_option('display.max_columns')
+        max_rows = get_option('display.max_rows')
+
+        h, w = max_rows-1, max_cols-1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert '...'  not in df._repr_html_()
+
+        h, w = max_rows+1, max_cols+1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert '...'  in df._repr_html_()
 
     def test_fake_qtconsole_repr_html(self):
         def get_ipython():
