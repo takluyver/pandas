@@ -742,8 +742,8 @@ class HTMLFormatter(TableFormatter):
                           align=align)
 
         if self.fmt.has_index_names:
-            row = [x if x is not None else ''
-                   for x in self.frame.index.names] + [''] * len(self.columns)
+            row = [x if x is not None else '' for x in self.frame.index.names] \
+                            + [''] * min(len(self.columns), self.max_cols)
             self.write_tr(row, indent, self.indent_delta, header=True)
 
         indent -= self.indent_delta
