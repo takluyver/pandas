@@ -263,7 +263,8 @@ class DataFrameFormatter(TableFormatter):
     def __init__(self, frame, buf=None, columns=None, col_space=None,
                  header=True, index=True, na_rep='NaN', formatters=None,
                  justify=None, float_format=None, sparsify=None,
-                 index_names=True, line_width=None, **kwds):
+                 index_names=True, line_width=None, max_rows=None, max_cols=None,
+                 **kwds):
         self.frame = frame
         self.buf = buf if buf is not None else StringIO()
         self.show_index_names = index_names
@@ -280,6 +281,8 @@ class DataFrameFormatter(TableFormatter):
         self.header = header
         self.index = index
         self.line_width = line_width
+        self.max_rows = max_rows
+        self.max_cols = max_cols
 
         if justify is None:
             self.justify = get_option("display.colheader_justify")
@@ -303,12 +306,19 @@ class DataFrameFormatter(TableFormatter):
         str_index = self._get_formatted_index()
         str_columns = self._get_formatted_column_labels()
 
-        stringified = []
-
         _strlen = _strlen_func()
 
-        for i, c in enumerate(self.columns):
-            if self.header:
+        cols_to_show = self.columns[:self.max_cols]
+        truncate_h = self.max_cols and (len(self.columns) > self.max_cols)
+        truncate_v = self.max_rows and (len(self.frame) > self.max_rows)
+        if truncate_h:
+            cols_to_show = self.columns[:self.max_cols]
+        else:
+            cols_to_show = self.columns
+
+        if self.header:
+            stringified = []
+            for i, c in enumerate(cols_to_show):
                 fmt_values = self._format_col(i)
                 cheader = str_columns[i]
 
@@ -316,7 +326,7 @@ class DataFrameFormatter(TableFormatter):
                                    *(_strlen(x) for x in cheader))
 
                 fmt_values = _make_fixed_width(fmt_values, self.justify,
-                                               minimum=max_colwidth)
+                                   minimum=max_colwidth, truncated=truncate_v)
 
                 max_len = max(np.max([_strlen(x) for x in fmt_values]),
                               max_colwidth)
@@ -326,14 +336,17 @@ class DataFrameFormatter(TableFormatter):
                     cheader = [x.rjust(max_len) for x in cheader]
 
                 stringified.append(cheader + fmt_values)
-            else:
-                stringified = [_make_fixed_width(self._format_col(i),
-                                                 self.justify)
-                               for i, c in enumerate(self.columns)]
+        else:
+            stringified = [_make_fixed_width(self._format_col(i), self.justify,
+                                             truncated=truncate_v)
+                           for i, c in enumerate(cols_to_show)]
 
         strcols = stringified
         if self.index:
             strcols.insert(0, str_index)
+        if truncate_h:
+            strcols.append(([''] * len(str_columns[-1])) \
+                            + (['...'] * min(len(self.frame), self.max_rows)) )
 
         return strcols
 
@@ -378,6 +391,11 @@ class DataFrameFormatter(TableFormatter):
         col_bins = _binify(col_widths, lwidth)
         nbins = len(col_bins)
 
+        if self.max_rows and len(self.frame) > self.max_rows:
+            nrows = self.max_rows + 1
+        else:
+            nrows = len(self.frame)
+
         str_lst = []
         st = 0
         for i, ed in enumerate(col_bins):
@@ -385,9 +403,9 @@ class DataFrameFormatter(TableFormatter):
             row.insert(0, idx)
             if nbins > 1:
                 if ed <= len(strcols) and i < nbins - 1:
-                    row.append([' \\'] + ['  '] * (len(self.frame) - 1))
+                    row.append([' \\'] + ['  '] * (nrows - 1))
                 else:
-                    row.append([' '] * len(self.frame))
+                    row.append([' '] * nrows)
 
             str_lst.append(adjoin(adjoin_width, *row))
             st = ed
@@ -458,17 +476,18 @@ class DataFrameFormatter(TableFormatter):
 
     def _format_col(self, i):
         formatter = self._get_formatter(i)
-        return format_array(self.frame.icol(i).get_values(), formatter,
-                            float_format=self.float_format,
+        return format_array(self.frame.icol(i)[:self.max_rows].get_values(),
+                            formatter, float_format=self.float_format,
                             na_rep=self.na_rep,
                             space=self.col_space)
 
-    def to_html(self, classes=None, max_rows=60, max_cols=20):
+    def to_html(self, classes=None):
         """
         Render a DataFrame to a html table.
         """
-        html_renderer = HTMLFormatter(self, classes=classes, max_rows=max_rows,
-                                      max_cols=max_cols)
+        html_renderer = HTMLFormatter(self, classes=classes,
+                                      max_rows=self.max_rows,
+                                      max_cols=self.max_cols)
         if hasattr(self.buf, 'write'):
             html_renderer.write_result(self.buf)
         elif isinstance(self.buf, compat.string_types):
@@ -484,8 +503,13 @@ class DataFrameFormatter(TableFormatter):
         def is_numeric_dtype(dtype):
             return issubclass(dtype.type, np.number)
 
-        if isinstance(self.columns, MultiIndex):
-            fmt_columns = self.columns.format(sparsify=False, adjoin=False)
+        if self.max_cols:
+            columns = self.columns[:self.max_cols]
+        else:
+            columns = self.columns
+
+        if isinstance(columns, MultiIndex):
+            fmt_columns = columns.format(sparsify=False, adjoin=False)
             fmt_columns = lzip(*fmt_columns)
             dtypes = self.frame.dtypes.values
             need_leadsp = dict(zip(fmt_columns, map(is_numeric_dtype, dtypes)))
@@ -497,14 +521,14 @@ class DataFrameFormatter(TableFormatter):
 
             str_columns = [list(x) for x in zip(*str_columns)]
         else:
-            fmt_columns = self.columns.format()
+            fmt_columns = columns.format()
             dtypes = self.frame.dtypes
             need_leadsp = dict(zip(fmt_columns, map(is_numeric_dtype, dtypes)))
             str_columns = [[' ' + x
                             if not self._get_formatter(i) and need_leadsp[x]
                             else x]
                            for i, (col, x) in
-                           enumerate(zip(self.columns, fmt_columns))]
+                           enumerate(zip(columns, fmt_columns))]
 
         if self.show_index_names and self.has_index_names:
             for x in str_columns:
@@ -522,7 +546,10 @@ class DataFrameFormatter(TableFormatter):
 
     def _get_formatted_index(self):
         # Note: this is only used by to_string(), not by to_html().
-        index = self.frame.index
+        if self.max_rows:
+            index = self.frame.index[:self.max_rows]
+        else:
+            index = self.frame.index
         columns = self.frame.columns
 
         show_index_names = self.show_index_names and self.has_index_names
@@ -565,7 +592,7 @@ class HTMLFormatter(TableFormatter):
 
     indent_delta = 2
 
-    def __init__(self, formatter, classes=None, max_rows=60, max_cols=20):
+    def __init__(self, formatter, classes=None, max_rows=None, max_cols=None):
         self.fmt = formatter
         self.classes = classes
 
@@ -575,8 +602,8 @@ class HTMLFormatter(TableFormatter):
         self.bold_rows = self.fmt.kwds.get('bold_rows', False)
         self.escape = self.fmt.kwds.get('escape', True)
 
-        self.max_rows = max_rows
-        self.max_cols = max_cols
+        self.max_rows = max_rows or len(self.fmt.frame)
+        self.max_cols = max_cols or len(self.fmt.columns)
 
     def write(self, s, indent=0):
         rs = com.pprint_thing(s)
@@ -1742,7 +1769,7 @@ def _format_timedelta64(x):
     return lib.repr_timedelta64(x)
 
 
-def _make_fixed_width(strings, justify='right', minimum=None):
+def _make_fixed_width(strings, justify='right', minimum=None, truncated=False):
     if len(strings) == 0:
         return strings
 
@@ -1771,7 +1798,12 @@ def _make_fixed_width(strings, justify='right', minimum=None):
 
         return justfunc(x, eff_len)
 
-    return [just(x) for x in strings]
+    result = [just(x) for x in strings]
+
+    if truncated:
+        result.append(justfunc('...'[:max_len], max_len))
+
+    return result
 
 
 def _trim_zeros(str_floats, na_rep='NaN'):

@@ -437,30 +437,14 @@ class DataFrame(NDFrame):
         py2/py3.
         """
         buf = StringIO(u(""))
-        fits_vertical = self._repr_fits_vertical_()
-        fits_horizontal = False
-        if fits_vertical:
-            # This needs to compute the entire repr
-            # so don't do it unless rownum is bounded
-            fits_horizontal = self._repr_fits_horizontal_()
-
-        if fits_vertical and fits_horizontal:
-            self.to_string(buf=buf)
-        else:
+        max_rows = get_option("display.max_rows")
+        max_cols = get_option("display.max_columns")
+        if get_option("display.expand_frame_repr"):
             width, _ = fmt.get_console_size()
-            max_columns = get_option("display.max_columns")
-            expand_repr = get_option("display.expand_frame_repr")
-            # within max_cols and max_rows, but cols exceed width
-            # of terminal, then use expand_repr
-            if (fits_vertical and
-                expand_repr and
-                    len(self.columns) <= max_columns):
-                self.to_string(buf=buf, line_width=width)
-            else:
-                max_info_rows = get_option('display.max_info_rows')
-                verbose = (max_info_rows is None or
-                           self.shape[0] <= max_info_rows)
-                self.info(buf=buf, verbose=verbose)
+        else:
+            width = None
+        self.to_string(buf=buf, max_rows=max_rows, max_cols=max_cols,
+                       line_width=width)
 
         return buf.getvalue()
 
@@ -1255,7 +1239,7 @@ class DataFrame(NDFrame):
                   header=True, index=True, na_rep='NaN', formatters=None,
                   float_format=None, sparsify=None, nanRep=None,
                   index_names=True, justify=None, force_unicode=None,
-                  line_width=None):
+                  line_width=None, max_rows=None, max_cols=None):
         """
         Render a DataFrame to a console-friendly tabular output.
         """
@@ -1281,7 +1265,8 @@ class DataFrame(NDFrame):
                                            justify=justify,
                                            index_names=index_names,
                                            header=header, index=index,
-                                           line_width=line_width)
+                                           line_width=line_width,
+                                           max_rows=max_rows, max_cols=max_cols)
         formatter.to_string()
 
         if buf is None:
@@ -1293,7 +1278,7 @@ class DataFrame(NDFrame):
                 header=True, index=True, na_rep='NaN', formatters=None,
                 float_format=None, sparsify=None, index_names=True,
                 justify=None, force_unicode=None, bold_rows=True,
-                classes=None, escape=True, max_rows=60, max_cols=20):
+                classes=None, escape=True, max_rows=None, max_cols=None):
         """
         Render a DataFrame as an HTML table.
 
@@ -1304,11 +1289,12 @@ class DataFrame(NDFrame):
         classes : str or list or tuple, default None
             CSS class(es) to apply to the resulting html table
         escape : boolean, default True
-            Convert the characters <, >, and & to HTML-safe sequences.
-        max_rows : int, default 60
-            Maximum number of rows to show before truncating.
-        max_cols : int, default 20
-            Maximum number of columns to show before truncating.
+            Convert the characters <, >, and & to HTML-safe sequences.=
+        max_rows : int, optional
+            Maximum number of rows to show before truncating. If None, show all.
+        max_cols : int, optional
+            Maximum number of columns to show before truncating. If None, show
+            all.
 
         """
 
@@ -1330,8 +1316,9 @@ class DataFrame(NDFrame):
                                            index_names=index_names,
                                            header=header, index=index,
                                            bold_rows=bold_rows,
-                                           escape=escape)
-        formatter.to_html(classes=classes, max_rows=max_rows, max_cols=max_cols)
+                                           escape=escape,
+                                           max_rows=max_rows, max_cols=max_cols)
+        formatter.to_html(classes=classes)
 
         if buf is None:
             return formatter.buf.getvalue()
