@@ -1363,7 +1363,7 @@ class DataFrame(NDFrame):
 
     def info(self, verbose=True, buf=None, max_cols=None):
         """
-        Concise summary of a DataFrame, used in __repr__ when very large.
+        Concise summary of a DataFrame.
 
         Parameters
         ----------

@@ -166,13 +166,11 @@ pc_max_seq_items = """
 
 pc_max_info_rows_doc = """
 : int or None
-    max_info_rows is the maximum number of rows for which a frame will
-    perform a null check on its columns when repr'ing To a console.
-    The default is 1,000,000 rows. So, if a DataFrame has more
-    1,000,000 rows there will be no null check performed on the
-    columns and thus the representation will take much less time to
-    display in an interactive session. A value of None means always
-    perform a null check when repr'ing.
+    Deprecated.
+"""
+
+pc_max_info_rows_deprecation_warning = """\
+max_info_rows has been deprecated, as reprs no longer use the info view.
 """
 
 pc_mpl_style_doc = """
@@ -257,6 +255,9 @@ cf.deprecate_option('display.line_width',
 cf.deprecate_option('display.height',
                     msg=pc_height_deprecation_warning,
                     rkey='display.max_rows')
+
+cf.deprecate_option('display.max_info_rows',
+                    msg=pc_max_info_rows_deprecation_warning)
 
 tc_sim_interactive_doc = """
 : boolean
