@@ -31,9 +31,19 @@ def curpath():
     pth, _ = os.path.split(os.path.abspath(__file__))
     return pth
 
-def has_info_repr(df):
+def has_horizontally_truncated_repr(df):
     r = repr(df)
-    return r.split('\n')[0].startswith("<class")
+    return any(l.strip().endswith('...') for l in r.splitlines())
+
+def has_vertically_truncated_repr(df):
+    r = repr(df)
+    return '..' in r.splitlines()[-1]
+
+def has_truncated_repr(df):
+    return has_horizontally_truncated_repr(df) or has_vertically_truncated_repr(df)
+
+def has_doubly_truncated_repr(df):
+    return has_horizontally_truncated_repr(df) and has_vertically_truncated_repr(df)
 
 def has_expanded_repr(df):
     r = repr(df)
@@ -173,19 +183,19 @@ class TestDataFrameFormatting(unittest.TestCase):
                                 'display.width',20,
                                 'display.max_rows', 20):
                 with option_context('display.expand_frame_repr', True):
-                    self.assertFalse(has_info_repr(df_small))
+                    self.assertFalse(has_truncated_repr(df_small))
                     self.assertFalse(has_expanded_repr(df_small))
-                    self.assertFalse(has_info_repr(df_wide))
+                    self.assertFalse(has_truncated_repr(df_wide))
                     self.assertTrue(has_expanded_repr(df_wide))
-                    self.assertTrue(has_info_repr(df_tall))
-                    self.assertFalse(has_expanded_repr(df_tall))
+                    self.assertTrue(has_vertically_truncated_repr(df_tall))
+                    self.assertTrue(has_expanded_repr(df_tall))
 
                 with option_context('display.expand_frame_repr', False):
-                    self.assertFalse(has_info_repr(df_small))
+                    self.assertFalse(has_truncated_repr(df_small))
                     self.assertFalse(has_expanded_repr(df_small))
-                    self.assertTrue(has_info_repr(df_wide))
+                    self.assertFalse(has_horizontally_truncated_repr(df_wide))
                     self.assertFalse(has_expanded_repr(df_wide))
-                    self.assertTrue(has_info_repr(df_tall))
+                    self.assertTrue(has_vertically_truncated_repr(df_tall))
                     self.assertFalse(has_expanded_repr(df_tall))
 
     def test_repr_non_interactive(self):
@@ -197,7 +207,7 @@ class TestDataFrameFormatting(unittest.TestCase):
                             'display.width', 0,
                             'display.height', 0,
                             'display.max_rows',5000):
-            self.assertFalse(has_info_repr(df))
+            self.assertFalse(has_truncated_repr(df))
             self.assertFalse(has_expanded_repr(df))
 
     def test_repr_max_columns_max_rows(self):
@@ -219,20 +229,20 @@ class TestDataFrameFormatting(unittest.TestCase):
                     self.assertFalse(has_expanded_repr(mkframe(4)))
                     self.assertFalse(has_expanded_repr(mkframe(5)))
                     self.assertFalse(has_expanded_repr(df6))
-                    self.assertTrue(has_info_repr(df6))
+                    self.assertTrue(has_doubly_truncated_repr(df6))
 
                 with option_context('display.max_rows', 20,
                                     'display.max_columns', 10):
                     # Out off max_columns boundary, but no extending
                     # since not exceeding width
                     self.assertFalse(has_expanded_repr(df6))
-                    self.assertFalse(has_info_repr(df6))
+                    self.assertFalse(has_truncated_repr(df6))
 
                 with option_context('display.max_rows', 9,
                                     'display.max_columns', 10):
                     # out vertical bounds can not result in exanded repr
                     self.assertFalse(has_expanded_repr(df10))
-                    self.assertTrue(has_info_repr(df10))
+                    self.assertTrue(has_vertically_truncated_repr(df10))
 
             # width=None in terminal, auto detection
             with option_context('display.max_columns', 100,
@@ -723,45 +733,6 @@ class TestDataFrameFormatting(unittest.TestCase):
         repr(df)
         repr(df.T)
         fmt.set_option('display.max_rows', 200)
-
-    def test_large_frame_repr(self):
-        def wrap_rows_options(f):
-            def _f(*args, **kwargs):
-                old_max_rows = pd.get_option('display.max_rows')
-                old_max_info_rows = pd.get_option('display.max_info_rows')
-                o = f(*args, **kwargs)
-                pd.set_option('display.max_rows', old_max_rows)
-                pd.set_option('display.max_info_rows', old_max_info_rows)
-                return o
-            return _f
-
-        @wrap_rows_options
-        def test_setting(value, nrows=3, ncols=2):
-            if value is None:
-                expected_difference = 0
-            elif isinstance(value, int):
-                expected_difference = ncols
-            else:
-                raise ValueError("'value' must be int or None")
-
-            with option_context('mode.sim_interactive', True):
-                pd.set_option('display.max_rows', nrows - 1)
-                pd.set_option('display.max_info_rows', value)
-
-                smallx = DataFrame(np.random.rand(nrows, ncols))
-                repr_small = repr(smallx)
-
-                bigx = DataFrame(np.random.rand(nrows + 1, ncols))
-                repr_big = repr(bigx)
-
-                diff = len(repr_small.splitlines()) - len(repr_big.splitlines())
-
-                # the difference in line count is the number of columns
-                self.assertEqual(diff, expected_difference)
-
-        test_setting(None)
-        test_setting(3)
-        self.assertRaises(ValueError, test_setting, 'string')
 
     def test_pprint_thing(self):
         import nose
