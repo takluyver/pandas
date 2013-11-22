@@ -429,6 +429,12 @@ class DataFrame(NDFrame):
 
         return repr_width < width
 
+    def _info_repr(self):
+        """True if the repr should show the info view."""
+        info_repr_option = (get_option("display.large_repr") == "info")
+        return info_repr_option and not \
+                (self._repr_fits_horizontal_() and self._repr_fits_vertical_())
+
     def __unicode__(self):
         """
         Return a string representation for a particular DataFrame
@@ -437,6 +443,10 @@ class DataFrame(NDFrame):
         py2/py3.
         """
         buf = StringIO(u(""))
+        if self._info_repr():
+            self.info(buf=buf)
+            return buf.getvalue()
+
         max_rows = get_option("display.max_rows")
         max_cols = get_option("display.max_columns")
         if get_option("display.expand_frame_repr"):
@@ -463,6 +473,11 @@ class DataFrame(NDFrame):
         # that doesn't fit the window, so disable it.
         if com.in_qtconsole():
             raise ValueError('Disable HTML output in QtConsole')
+
+        if self._info_repr():
+            buf = StringIO(u(""))
+            self.info(buf=buf)
+            return '<pre>' + buf.getvalue() + '</pre>'
 
         if get_option("display.notebook_repr_html"):
             max_rows = get_option("display.max_rows")

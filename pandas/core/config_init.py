@@ -173,6 +173,14 @@ pc_max_info_rows_deprecation_warning = """\
 max_info_rows has been deprecated, as reprs no longer use the info view.
 """
 
+pc_large_repr_doc = """
+: 'truncate'/'info'
+
+    For DataFrames exceeding max_rows/max_cols, the repr (and HTML repr) can
+    show a truncated table (the default from 0.13), or switch to the view from
+    df.info() (the behaviour in earlier versions of pandas).
+"""
+
 pc_mpl_style_doc = """
 : bool
 
@@ -218,6 +226,8 @@ with cf.config_prefix('display'):
     cf.register_option('max_colwidth', 50, max_colwidth_doc, validator=is_int)
     cf.register_option('max_columns', 20, pc_max_cols_doc,
                        validator=is_instance_factory([type(None), int]))
+    cf.register_option('large_repr', 'truncate', pc_large_repr_doc,
+                       validator=is_one_of_factory(['truncate', 'info']))
     cf.register_option('max_info_columns', 100, pc_max_info_cols_doc,
                        validator=is_int)
     cf.register_option('colheader_justify', 'right', colheader_justify_doc,

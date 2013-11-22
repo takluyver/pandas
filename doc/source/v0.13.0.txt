@@ -611,7 +611,8 @@ Enhancements
   a truncated view of the table once it exceeds a certain size, rather
   than switching to the short info view (:issue:`4886`, :issue:`5550`).
   This makes the representation more consistent as small DataFrames get
-  larger. To get the info view, call :meth:`DataFrame.info`.
+  larger. To get the info view, call :meth:`DataFrame.info`, or restore
+  the old behaviour with ``set_option('display.large_repr', 'info')``.
 
 .. _whatsnew_0130.experimental:
 

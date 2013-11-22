@@ -31,6 +31,10 @@ def curpath():
     pth, _ = os.path.split(os.path.abspath(__file__))
     return pth
 
+def has_info_repr(df):
+    r = repr(df)
+    return r.split('\n')[0].startswith("<class")
+
 def has_horizontally_truncated_repr(df):
     r = repr(df)
     return any(l.strip().endswith('...') for l in r.splitlines())
@@ -1476,6 +1480,40 @@ c  10  11  12  13  14\
         h, w = max_rows+1, max_cols+1
         df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
         assert '...'  in df._repr_html_()
+
+    def test_info_repr(self):
+        max_rows = get_option('display.max_rows')
+        max_cols = get_option('display.max_columns')
+        # Long
+        h, w = max_rows+1, max_cols-1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert has_vertically_truncated_repr(df)
+        with option_context('display.large_repr', 'info'):
+            assert has_info_repr(df)
+
+        # Wide
+        h, w = max_rows-1, max_cols+1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert has_vertically_truncated_repr(df)
+        with option_context('display.large_repr', 'info'):
+            assert has_info_repr(df)
+
+    def test_info_repr_html(self):
+        max_rows = get_option('display.max_rows')
+        max_cols = get_option('display.max_columns')
+        # Long
+        h, w = max_rows+1, max_cols-1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert '<class' not in df._repr_html_()
+        with option_context('display.large_repr', 'info'):
+            assert '<class' in df._repr_html_()
+
+        # Wide
+        h, w = max_rows-1, max_cols+1
+        df = pandas.DataFrame(dict((k,np.arange(1,1+h)) for k in np.arange(w)))
+        assert '<class' not in df._repr_html_()
+        with option_context('display.large_repr', 'info'):
+            assert '<class' in df._repr_html_()
 
     def test_fake_qtconsole_repr_html(self):
         def get_ipython():
